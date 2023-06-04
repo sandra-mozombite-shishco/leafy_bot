@@ -4,12 +4,6 @@
 #include <TFT_eSPI.h>
 #include <SPI.h>
 
-
-/*/ Loop
-MQ4.init();
-MQ4.update();
-float ppmCH4 = MQ4.readSensor();*/
-
 /*********************************************  PANTALLA **********************************************/ 
 // Pantalla
 TFT_eSPI tft = TFT_eSPI();  // Invoke library
@@ -21,9 +15,15 @@ const int pinWater85Level = 21;   //Pin digital
 const int pinWater10Level = 19;   //Pin digital
 
 const int pinMoistSoil = 36;      //Pin analogico
-int MoistThre = 40;             //Es el valor% de humedad limite para regar la maceta
+int MoistThre = 40;               //Es el valor% de humedad limite para regar la maceta
 
-const int pinBatLevel = 25;      //Pin analogico
+//Variables de estados
+int waterLevel_state = 1;
+int soilMoist_state = 0;
+String tankLed = "Blanco";        // Ejemplos: "Led tanque ROJO"; "Led tanque NARANJA"; "Led tanque VERDE"
+String tankNotif = "";
+String tankScrMessage = "";
+
 
 /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/ 
 //Variables y pines del sensado de aire
@@ -140,22 +140,107 @@ void setup() {
 
 // the loop function runs over and over again forever
 void loop() {
-  tft.setCursor(4, 10);
-  tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
-  tft.println("PROTIPO 1");
-  tft.println("");
 
-  /***************************************** CONTROL DE AGUA ********************************************/ 
-  tft.setTextSize(1);
+  //===============================================================================
+  // LECTURA DE LOS SENSORES
+  //===============================================================================
+  
   //Lectura de los sensores de nivel de agua
   int waterLevel_85 = digitalRead(pinWater85Level); //above level = 0, below level = 1
   int waterLevel_10 = digitalRead(pinWater10Level); //above level = 0, below level = 1
+  waterLevel_state = waterLevel_85 + waterLevel_10;
+    /* waterLevel_state =
+      2 : empty tank
+      1 : half full tank
+      0 : full tank
+    */
 
   //Lectura del sensor de humedad del suelo
   int moistSoil = analogRead(pinMoistSoil); // read the analog value from sensor
+  float perMoist= (1-(moistSoil/4095.0))*100;
 
+  //Lectura de los sensores de calidad de aire
+  MQ135.update();
+  float CO2_ppm = MQ135.readSensor();
+  MQ9.update();
+  float CO_ppm = MQ9.readSensor();
+
+
+  //===============================================================================
+  // CONTROL DE INDICADORES DEL ESTADO DE HUMEDAD DEL SUELO
+  //===============================================================================
+  if (perMoist < MoistThre) // when the soil is WET
+  {
+    soilMoist_state = 0;
+    switch (waterLevel_state) // Cambios de los indicadores
+    {
+    case 0:
+      tankLed = "Led tanque verde"; 
+      tankNotif = "No hay notif.";
+      tankScrMessage = "Tanque lleno";
+      break;
+    case 1:
+      tankLed = "Led tanque AMARILLO"; 
+      tankNotif = "No hay notif.";
+      tankScrMessage = "Tanque con agua";
+      break;
+    case 2:
+      tankLed = "Led tanque NARANJA"; 
+      tankNotif = "No hay notif.";
+      tankScrMessage = "Tanque vacío";
+      break;
+    default:
+      break;
+    }
+  }
+  else // when the soil is DRY
+  {
+    soilMoist_state = 1;
+    switch (waterLevel_state)
+    {
+    case 0:
+      tankLed = "Led tanque verde parp."; 
+      tankNotif = "Sí hay notif.";
+      tankScrMessage = "Tanque listo";
+      break;
+    case 1:
+      tankLed = "Led tanque nanranja parp."; 
+      tankNotif = "Sí hay notif.";
+      tankScrMessage = "Insuficiente agua";
+      break;
+    case 2:
+      tankLed = "Led tanque rojo parp."; 
+      tankNotif = "Sí hay notif.";
+      tankScrMessage = "¡¡¡Tanque vacío!!!";
+      break;
+    default:
+      break;
+    }
+  }
+  
+  Serial.println(tankLed);
+  Serial.println(tankNotif);
+  Serial.println(tankScrMessage);
+
+  //===============================================================================
+  // PANTALLita :)
+  //===============================================================================
+
+  tft.setCursor(4, 10);
+  tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
+  tft.println("PROTIPO 2");
+  tft.println("");
+
+  
+  tft.setTextSize(1);
+  tft.println(tankLed);
+  tft.println(tankNotif);
+  tft.println(tankScrMessage);
+
+
+  /***************************************** CONTROL DE AGUA ********************************************/ 
   // Control segun el sensor de nivel del deposito
-
+/*
   if (waterLevel_10 == 1) { // Nivel de agua por debajo del 10%
     Serial.println("Despósito de agua vacío");
     tft.println("Tanque agua: VACIO");
@@ -178,7 +263,7 @@ void loop() {
   tft.println("");
 
   // Control segun la humedad del suelo
-  float perMoist= (1-(moistSoil/4095.0))*100;
+  
 
   if(perMoist < MoistThre){
     Serial.println("El suelo está seco. Heche agua en el depósito");
@@ -198,14 +283,13 @@ void loop() {
   tft.println("");
 
   /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/
-  MQ135.update();
-  float CO2_ppm = MQ135.readSensor();
+
+  /*
   Serial.print("CO2: ");
   Serial.print(CO2_ppm);
   Serial.println(" PPM");
 
-  MQ9.update();
-  float CO_ppm = MQ9.readSensor();
+  
   Serial.print("CO: ");
   Serial.print(CO_ppm);
   Serial.println(" PPM");
@@ -231,19 +315,9 @@ void loop() {
     Serial.println("Calidad del aire: Baja calidad");
     tft.println("Air Q.: Baja");
   }*/
-  int BatLevelADC = analogRead(pinBatLevel);
-
-  float Volt_Bat = BatLevelADC* (3.3 / 4095.00) * 2; //convert the value to a true voltage.
-  Serial.print("Volt Bat: ");
-  Serial.println(Volt_Bat);
-
-  float per_bat=map(Volt_Bat,0.04,3.7,0,100); 
-  Serial.print("%Bat: ");
-  Serial.println(per_bat);
-
 
   Serial.println(" ");
-  tft.println("");
+  Serial.println(" ");
 
   delay(1000);
 }
