@@ -106,7 +106,7 @@ void setup() {
   MQ9.init(); 
   MQ9.setRL(1); //Valor en kilo ohms ---------------------------------------------------> FALTA CORROBORAR
   
-  /*Uncomment above in case of calibration*/
+  /*Uncomment below in case of calibration*/
   /*Serial.print("Calibrating MQ135 please wait.");
   float calcR0 = 0;
   for(int i = 1; i<=10; i ++)
@@ -126,7 +126,7 @@ void setup() {
   /*****************************  MQ CAlibration ********************************************/ 
   //MQ135.setR0(R0value_MQ135); Uncomment for a fix value
 
-  /*Uncomment above in case of calibration*/
+  /*Uncomment below in case of calibration*/
   /*Serial.print("Calibrating MQ9 please wait.");
   float calcR0 = 0;
   for(int i = 1; i<=10; i ++)
@@ -305,6 +305,11 @@ void loop() {
       break;
   }
   
+
+  //===============================================================================
+  // CONTROL DE CALIDAD DE AIRE
+  //===============================================================================
+
 
   //===============================================================================
   // PANTALLita :)
