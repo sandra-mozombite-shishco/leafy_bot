@@ -251,7 +251,7 @@ void loop() {
       else if (waterLevel_state==2)                     //Tanque vacio
       {
         digitalWrite(pinMosfetGate, LOW);               //Apaga bomba
-        static unsigned long initialTime = millis();    //Reinicia la cuenta
+        initialTime = millis();                         //Reinicia la cuenta
         pump_cycle=2;
         betweenCycle_time = 15*1000; // min*1000*60
       }
@@ -265,7 +265,7 @@ void loop() {
         else if (waterLevel_state==2)                   //Tanque vacio
         {  
           digitalWrite(pinMosfetGate, LOW);             //Apaga la bomba
-          static unsigned long initialTime = millis();  //Reinicia la cuenta
+          initialTime = millis();                       //Reinicia la cuenta
           pump_cycle=3;
           betweenCycle_time = 20*1000; // min*1000*60
         }
@@ -280,7 +280,7 @@ void loop() {
         else if (waterLevel_state==2)                   //Tanque vacio
         {  
           digitalWrite(pinMosfetGate, LOW);             //Apaga la bomba
-          static unsigned long initialTime = millis();  //Reinicia la cuenta
+          initialTime = millis();                       //Reinicia la cuenta
           pump_cycle=4;
           betweenCycle_time = 30*1000; // min*1000*60
         }
@@ -295,7 +295,7 @@ void loop() {
         else if (waterLevel_state==2)                   //Tanque vacio
         {  
           digitalWrite(pinMosfetGate, LOW);             //Apaga la bomba
-          static unsigned long initialTime = 0;         //Reinicia la cuenta
+          initialTime = 0;         //Reinicia la cuenta
           pump_cycle=0;
           betweenCycle_time = 0; // min*1000*60
         }
