@@ -26,13 +26,15 @@ String tankLed = "Blanco";        // Ejemplos: "Led tanque ROJO"; "Led tanque NA
 String tankNotif = "";
 String tankScrMessage = "";
 
-int pump_Buttontag = 0; // Señal de inicio del tanque, cambiara cuando se presione el botón de llenado
-                          //  pump tag = 0; no se manda la señal de activación del tanque
-                          //  pump tag = 1; se manda la señal de activación del tanque*/
-int pump_Watertag = 0; // Señal de inicio del tanque, cambiara cuando se cumpla "case 0" con el suelo seco
-                          //  pump tag = 0; no se manda la señal de activación del tanque
-                          //  pump tag = 1; se manda la señal de activación del tanque*/
+const int pinPushBut_pump=0;
+volatile int pump_Buttontag = 0; // Señal de inicio del tanque, cambiara cuando se presione el botón de llenado
+                          //  pump_Buttontag = 0; no se manda la señal de activación del tanque
+                          //  pump_Buttontag = 1; se manda la señal de activación del tanque*/
+void IRAM_ATTR turnONpump();
 
+int pump_Watertag = 0; // Señal de inicio del tanque, cambiara cuando se cumpla "case 0" con el suelo seco
+                          //  pump_Watertag = 0; no se manda la señal de activación del tanque
+                          //  pump_Watertag = 1; se manda la señal de activación del tanque*/
 int pump_cycle = 0;
 unsigned long betweenCycle_time = 0; // min*1000*60
 static unsigned long initialTime=0;
@@ -74,6 +76,10 @@ void setup() {
   pinMode(pinWater85Level, INPUT_PULLUP);   //Pin entrada de nivel de agua
   pinMode(pinWater10Level, INPUT_PULLUP);   //Pin entrada de nivel de agua
   pinMode(pinMosfetGate, OUTPUT);           //Pin salida que activa la bomba
+  
+  //External setting interrupt
+  pinMode(pinPushBut_pump, INPUT_PULLDOWN);  // Configurar el GPIO del pulsador en modo pull-down
+  attachInterrupt(digitalPinToInterrupt(pinPushBut_pump), turnONpump, RISING);  // Configurar la interrupción en el flanco ascendente
 
   /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/ 
   //Configure Air quality objects
@@ -238,10 +244,14 @@ void loop() {
   // CONTROL DE ENCENDIDO DE LA BOMBA DE AGUA
   //===============================================================================
   int pump_start =  pump_Buttontag +  pump_Watertag; 
-  // 2: empieza
+  // 2 = 1 + 1: EMPIEZA. Se presiono el boton y el tanque esta lleno
+  // 1 = 1 + 0: Se presionó el botón sin que el tanque esté lleno
+  // 1 = 0 + 1: Tanque lleno sin presionar el botón
+  // 0 = 0 + 0: Tanque vacio sin presionar boton
   betweenCycle_time = 0; // min*1000*60
 
-  pump_cycle = (pump_start==2) ? 1 : pump_cycle;
+  pump_cycle = (pump_start==2) ? 1 : pump_cycle; 
+  // pump_cycle = 1 when pump_start=2, else pump_start keep its value
 
   switch (pump_cycle)
   {
@@ -295,9 +305,10 @@ void loop() {
         else if (waterLevel_state==2)                   //Tanque vacio
         {  
           digitalWrite(pinMosfetGate, LOW);             //Apaga la bomba
-          initialTime = 0;         //Reinicia la cuenta
+          initialTime = 0;                              //Reinicia la cuenta
           pump_cycle=0;
           betweenCycle_time = 0; // min*1000*60
+          pump_Buttontag = 0;                           //Se resetea el estado del pulsador
         }
       }
       break;
@@ -409,4 +420,9 @@ void loop() {
   Serial.println(" ");
 
   delay(1000);
+}
+
+
+void IRAM_ATTR turnONpump() {
+  pump_Buttontag = 1;  // Cambiar el estado de la variable a 1 cuando se active la interrupción del botón
 }
