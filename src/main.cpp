@@ -9,13 +9,15 @@
 TFT_eSPI tft = TFT_eSPI();  // Invoke library
 
 /***************************************** CONTROL DE AGUA ********************************************/ 
+
 //Pines para el control de la bomba e indicadores de agua
-const int pinMosfetGate = 22;     //Pin digital
 const int pinWater85Level = 21;   //Pin digital
 const int pinWater10Level = 19;   //Pin digital
 
 const int pinMoistSoil = 36;      //Pin analogico
 int MoistThre = 40;               //Es el valor% de humedad limite para regar la maceta
+
+const int pinMosfetGate = 22;     //Pin digital
 
 //Variables de estados
 int waterLevel_state = 1;
@@ -24,6 +26,16 @@ String tankLed = "Blanco";        // Ejemplos: "Led tanque ROJO"; "Led tanque NA
 String tankNotif = "";
 String tankScrMessage = "";
 
+int pump_Buttontag = 0; // Señal de inicio del tanque, cambiara cuando se presione el botón de llenado
+                          //  pump tag = 0; no se manda la señal de activación del tanque
+                          //  pump tag = 1; se manda la señal de activación del tanque*/
+int pump_Watertag = 0; // Señal de inicio del tanque, cambiara cuando se cumpla "case 0" con el suelo seco
+                          //  pump tag = 0; no se manda la señal de activación del tanque
+                          //  pump tag = 1; se manda la señal de activación del tanque*/
+
+int pump_cycle = 0;
+unsigned long betweenCycle_time = 0; // min*1000*60
+static unsigned long initialTime=0;
 
 /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/ 
 //Variables y pines del sensado de aire
@@ -149,11 +161,10 @@ void loop() {
   int waterLevel_85 = digitalRead(pinWater85Level); //above level = 0, below level = 1
   int waterLevel_10 = digitalRead(pinWater10Level); //above level = 0, below level = 1
   waterLevel_state = waterLevel_85 + waterLevel_10;
-    /* waterLevel_state =
-      2 : empty tank
-      1 : half full tank
-      0 : full tank
-    */
+    // waterLevel_state =
+    //  2 : empty tank
+    //  1 : half full tank
+    //  0 : full tank
 
   //Lectura del sensor de humedad del suelo
   int moistSoil = analogRead(pinMoistSoil); // read the analog value from sensor
@@ -169,9 +180,10 @@ void loop() {
   //===============================================================================
   // CONTROL DE INDICADORES DEL ESTADO DE HUMEDAD DEL SUELO
   //===============================================================================
-  if (perMoist < MoistThre) // when the soil is WET
+  if (perMoist > MoistThre) // when the soil is WET
   {
     soilMoist_state = 0;
+    pump_Watertag = 0;
     switch (waterLevel_state) // Cambios de los indicadores
     {
     case 0:
@@ -202,25 +214,97 @@ void loop() {
       tankLed = "Led tanque verde parp."; 
       tankNotif = "Sí hay notif.";
       tankScrMessage = "Tanque listo";
+      pump_Watertag = 1;
       break;
     case 1:
       tankLed = "Led tanque nanranja parp."; 
       tankNotif = "Sí hay notif.";
       tankScrMessage = "Insuficiente agua";
+      pump_Watertag = 0;
       break;
     case 2:
       tankLed = "Led tanque rojo parp."; 
       tankNotif = "Sí hay notif.";
       tankScrMessage = "¡¡¡Tanque vacío!!!";
+      pump_Watertag = 0;
       break;
     default:
       break;
     }
   }
+
   
-  Serial.println(tankLed);
-  Serial.println(tankNotif);
-  Serial.println(tankScrMessage);
+  //===============================================================================
+  // CONTROL DE ENCENDIDO DE LA BOMBA DE AGUA
+  //===============================================================================
+  int pump_start =  pump_Buttontag +  pump_Watertag; 
+  // 2: empieza
+  betweenCycle_time = 0; // min*1000*60
+
+  pump_cycle = (pump_start==2) ? 1 : pump_cycle;
+
+  switch (pump_cycle)
+  {
+    case 1:                                             //CICLO 1 --------------
+      if (waterLevel_state==0)                          //Tanque lleno
+        {digitalWrite(pinMosfetGate, HIGH);}            //Enciende la bomba
+      else if (waterLevel_state==2)                     //Tanque vacio
+      {
+        digitalWrite(pinMosfetGate, LOW);               //Apaga bomba
+        static unsigned long initialTime = millis();    //Reinicia la cuenta
+        pump_cycle=2;
+        betweenCycle_time = 15*1000; // min*1000*60
+      }
+      break;
+    case 2:                                             //CICLO 2 --------------
+      unsigned long time = millis()- initialTime;
+      if (time>=betweenCycle_time)                      //Si se superan los 15 min
+      {
+        if (waterLevel_state<2)                         //Tanque lleno o con agua
+          {digitalWrite(pinMosfetGate, HIGH);}          //Enciende la bomba
+        else if (waterLevel_state==2)                   //Tanque vacio
+        {  
+          digitalWrite(pinMosfetGate, LOW);             //Apaga la bomba
+          static unsigned long initialTime = millis();  //Reinicia la cuenta
+          pump_cycle=3;
+          betweenCycle_time = 20*1000; // min*1000*60
+        }
+      }
+      break;
+    case 3:                                             //CICLO 3 --------------
+      unsigned long time = millis()- initialTime;
+      if (time>=betweenCycle_time)                      //Si se superan los 20 min
+      {
+        if (waterLevel_state<2)                         //Tanque lleno o con agua
+          {digitalWrite(pinMosfetGate, HIGH);}          //Enciende la bomba
+        else if (waterLevel_state==2)                   //Tanque vacio
+        {  
+          digitalWrite(pinMosfetGate, LOW);             //Apaga la bomba
+          static unsigned long initialTime = millis();  //Reinicia la cuenta
+          pump_cycle=4;
+          betweenCycle_time = 30*1000; // min*1000*60
+        }
+      }
+      break;
+    case 4:                                             //CICLO 4 --------------
+      unsigned long time = millis()- initialTime;
+      if (time>=betweenCycle_time)                      //Si se superan los 30 min
+      {
+        if (waterLevel_state<2)                         //Tanque lleno o con agua
+          {digitalWrite(pinMosfetGate, HIGH);}          //Enciende la bomba
+        else if (waterLevel_state==2)                   //Tanque vacio
+        {  
+          digitalWrite(pinMosfetGate, LOW);             //Apaga la bomba
+          static unsigned long initialTime = 0;         //Reinicia la cuenta
+          pump_cycle=0;
+          betweenCycle_time = 0; // min*1000*60
+        }
+      }
+      break;
+    default:
+      break;
+  }
+  
 
   //===============================================================================
   // PANTALLita :)
@@ -236,6 +320,25 @@ void loop() {
   tft.println(tankLed);
   tft.println(tankNotif);
   tft.println(tankScrMessage);
+
+  Serial.println(tankLed);
+  Serial.println(tankNotif);
+  Serial.println(tankScrMessage);
+
+  if (soilMoist_state==0)
+  {
+    tft.println("SUELO HUMEDO");
+    Serial.println("SUELO HUMEDO");
+  }
+  else
+  {
+    tft.println("SUELO SECO");
+    Serial.println("SUELO SECO");
+  }
+  Serial.print("Moist %:");
+  Serial.println(perMoist);
+  tft.print("Moist %:");
+  tft.println(perMoist);
 
 
   /***************************************** CONTROL DE AGUA ********************************************/ 
@@ -262,26 +365,7 @@ void loop() {
   }
   tft.println("");
 
-  // Control segun la humedad del suelo
   
-
-  if(perMoist < MoistThre){
-    Serial.println("El suelo está seco. Heche agua en el depósito");
-    tft.println("Suelo SECO");
-  }else {
-    Serial.println("El suelo está húmedo ");
-    tft.println("Suelo HUMEDO ");
-  }
-  Serial.print("Humedad: ");  
-  Serial.print(perMoist);
-  Serial.println("%");
-  delay(100);
-  tft.print("Humedad: ");  
-  tft.print(perMoist);
-  tft.println("%");
-
-  tft.println("");
-
   /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/
 
   /*
