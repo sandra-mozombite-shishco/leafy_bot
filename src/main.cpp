@@ -26,8 +26,8 @@ String tankLed = "Blanco";        // Ejemplos: "Led tanque ROJO"; "Led tanque NA
 String tankNotif = "";
 String tankScrMessage = "";
 
-const int pinPushBut_pump=0;
-volatile int pump_Buttontag = 0; // Señal de inicio del tanque, cambiara cuando se presione el botón de llenado
+const int pinPushBut_pump=17;     //Pin digital en pull-down
+volatile int pump_Buttontag = 0;  // Señal de inicio del tanque, cambiara cuando se presione el botón de llenado
                           //  pump_Buttontag = 0; no se manda la señal de activación del tanque
                           //  pump_Buttontag = 1; se manda la señal de activación del tanque*/
 void IRAM_ATTR turnONpump();
@@ -39,22 +39,23 @@ int pump_cycle = 0;
 unsigned long betweenCycle_time = 0; // min*1000*60
 static unsigned long initialTime=0;
 
+
 /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/ 
 //Variables y pines del sensado de aire
 //const int pinAir_MQ135=39;
 //MQ135 mq135_sensor = MQ135(pinAir_MQ135);
-String Board = "ESP-32"; 
+String Board = "ESP-32";
 const float Voltage_Resolution = 3.3;
 const int ADC_Bit_Resolution = 12;
 
 String Type_MQ135 = "MQ-135";
 const int pinAir_MQ135 = 39; // Pin analógico GPIO39
-const float RatioMQ135CleanAir = 3.6; //RS / R0 = 3.6 ppm
+const float RatioMQ135CleanAir = 3.6; //RS / R0 = 3.6
 const float R0value_MQ135 = 0;
 
 String Type_MQ9 = "MQ-9";
 const int pinAir_MQ9 = 34; // Pin analógico GPIO34
-const float RatioMQ9CleanAir = 9.6; //RS / R0 = 60 ppm
+const float RatioMQ9CleanAir = 9.6; //RS / R0 = 9.6
 const float R0value_MQ9 = 0;
 
 MQUnifiedsensor MQ135(Board, Voltage_Resolution, ADC_Bit_Resolution, pinAir_MQ135, Type_MQ135); //Objeto de clase MQ
@@ -78,7 +79,7 @@ void setup() {
   pinMode(pinMosfetGate, OUTPUT);           //Pin salida que activa la bomba
   
   //External setting interrupt
-  pinMode(pinPushBut_pump, INPUT_PULLDOWN);  // Configurar el GPIO del pulsador en modo pull-down
+  pinMode(pinPushBut_pump, INPUT_PULLUP);  // Configurar el GPIO del pulsador en modo pull-down
   attachInterrupt(digitalPinToInterrupt(pinPushBut_pump), turnONpump, RISING);  // Configurar la interrupción en el flanco ascendente
 
   /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/ 
@@ -248,7 +249,9 @@ void loop() {
   // 1 = 1 + 0: Se presionó el botón sin que el tanque esté lleno
   // 1 = 0 + 1: Tanque lleno sin presionar el botón
   // 0 = 0 + 0: Tanque vacio sin presionar boton
-  betweenCycle_time = 0; // min*1000*60
+  //betweenCycle_time = 0; // min*1000*60
+  unsigned long time = millis()- initialTime; 
+  // mover de lugar para no operar todo el tiempo. Luego quitar del serial mas externo al loop
 
   pump_cycle = (pump_start==2) ? 1 : pump_cycle; 
   // pump_cycle = 1 when pump_start=2, else pump_start keep its value
@@ -267,7 +270,6 @@ void loop() {
       }
       break;
     case 2:                                             //CICLO 2 --------------
-      unsigned long time = millis()- initialTime;
       if (time>=betweenCycle_time)                      //Si se superan los 15 min
       {
         if (waterLevel_state<2)                         //Tanque lleno o con agua
@@ -282,7 +284,6 @@ void loop() {
       }
       break;
     case 3:                                             //CICLO 3 --------------
-      unsigned long time = millis()- initialTime;
       if (time>=betweenCycle_time)                      //Si se superan los 20 min
       {
         if (waterLevel_state<2)                         //Tanque lleno o con agua
@@ -297,7 +298,6 @@ void loop() {
       }
       break;
     case 4:                                             //CICLO 4 --------------
-      unsigned long time = millis()- initialTime;
       if (time>=betweenCycle_time)                      //Si se superan los 30 min
       {
         if (waterLevel_state<2)                         //Tanque lleno o con agua
@@ -308,6 +308,7 @@ void loop() {
           initialTime = 0;                              //Reinicia la cuenta
           pump_cycle=0;
           betweenCycle_time = 0; // min*1000*60
+          time = 0;
           pump_Buttontag = 0;                           //Se resetea el estado del pulsador
         }
       }
@@ -322,6 +323,7 @@ void loop() {
   //===============================================================================
 
 
+
   //===============================================================================
   // PANTALLita :)
   //===============================================================================
@@ -329,13 +331,14 @@ void loop() {
   tft.setCursor(4, 10);
   tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
   tft.println("PROTIPO 2");
-  tft.println("");
+
 
   
   tft.setTextSize(1);
-  tft.println(tankLed);
+  tft.println("");
+  /*tft.println(tankLed);
   tft.println(tankNotif);
-  tft.println(tankScrMessage);
+  tft.println(tankScrMessage);*/
 
   Serial.println(tankLed);
   Serial.println(tankNotif);
@@ -343,18 +346,65 @@ void loop() {
 
   if (soilMoist_state==0)
   {
-    tft.println("SUELO HUMEDO");
-    Serial.println("SUELO HUMEDO");
+    tft.print("SUELO WET");
+    Serial.print("SUELO WET");
   }
   else
   {
-    tft.println("SUELO SECO");
-    Serial.println("SUELO SECO");
+    tft.print("SUELO DRY");
+    Serial.print("SUELO DRY");
   }
-  Serial.print("Moist %:");
+  Serial.print("  %:");
   Serial.println(perMoist);
-  tft.print("Moist %:");
+  tft.print(" %:");
   tft.println(perMoist);
+
+  Serial.print("H2OLvl: ");
+  Serial.println(waterLevel_state);
+  Serial.print("PumpStart: ");
+  Serial.println(pump_start);
+  Serial.print("+H2Otag: ");
+  Serial.print(pump_Watertag);
+  Serial.print("  +PushBt: ");
+  Serial.println(pump_Buttontag);
+
+  tft.print("H2OLvl: ");
+  tft.println(waterLevel_state);
+  tft.print("PumpStart: ");
+  tft.println(pump_start);
+  tft.print("+H2Otag: ");
+  tft.print(pump_Watertag);
+  tft.print(" +PushBt: ");
+  tft.println(pump_Buttontag);
+
+  Serial.print("Cycle: ");
+  Serial.println(pump_cycle);
+  tft.print("Cycle: ");
+  tft.println(pump_cycle);
+
+  Serial.print("initialTime: ");
+  Serial.println(initialTime);
+  tft.print("initialTime: ");
+  tft.println(initialTime);
+
+  Serial.print("HalfTime: ");
+  Serial.println(betweenCycle_time);
+  tft.print("HalfTime: ");
+  tft.println(betweenCycle_time);
+
+  Serial.print("Time: ");
+  Serial.println(time);
+  tft.print("Time: ");
+  tft.println(time);
+  tft.println(" ");
+
+  Serial.print("pinMOSFET: ");
+  Serial.println(pinMosfetGate);
+  tft.print("pinMOSFET: ");
+  tft.println(pinMosfetGate);
+
+
+
 
 
   /***************************************** CONTROL DE AGUA ********************************************/ 
@@ -424,5 +474,6 @@ void loop() {
 
 
 void IRAM_ATTR turnONpump() {
-  pump_Buttontag = 1;  // Cambiar el estado de la variable a 1 cuando se active la interrupción del botón
+  if (pump_Watertag == 1)  pump_Buttontag = 1;  
+  // Cambiar el estado de la variable a 1 cuando se active la interrupción del botón
 }
