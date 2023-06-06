@@ -112,46 +112,47 @@ void setup() {
 
   MQ9.init(); 
   MQ9.setRL(1); //Valor en kilo ohms ---------------------------------------------------> FALTA CORROBORAR
-  
+
+  /*****************************  MQ CAlibration ********************************************/ 
   /*Uncomment below in case of calibration*/
-  /*Serial.print("Calibrating MQ135 please wait.");
-  float calcR0 = 0;
+  Serial.print("Calibrating MQ135 please wait.");
+  float calcR0_135 = 0;
   for(int i = 1; i<=10; i ++)
   {
     MQ135.update(); // Update data, the arduino will read the voltage from the analog pin
-    calcR0 += MQ135.calibrate(RatioMQ135CleanAir);
+    calcR0_135 += MQ135.calibrate(RatioMQ135CleanAir);
     Serial.print(".");
   }
-  MQ135.setR0(calcR0/10);
+  MQ135.setR0(calcR0_135/10);
   Serial.println("  done!.");
   
-  if(isinf(calcR0)) {Serial.println("Warning: Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
-  if(calcR0 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+  if(isinf(calcR0_135)) {Serial.println("Warning: Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
+  if(calcR0_135 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
   
   Serial.print("Valor de R0 para MQ135");
   Serial.println(MQ135.getR0());
-  /*****************************  MQ CAlibration ********************************************/ 
-  //MQ135.setR0(R0value_MQ135); Uncomment for a fix value
 
   /*Uncomment below in case of calibration*/
-  /*Serial.print("Calibrating MQ9 please wait.");
-  float calcR0 = 0;
+  Serial.print("Calibrating MQ9 please wait.");
+  float calcR0_9 = 0;
   for(int i = 1; i<=10; i ++)
   {
     MQ9.update(); // Update data, the arduino will read the voltage from the analog pin
-    calcR0 += MQ9.calibrate(RatioMQ9CleanAir);
+    calcR0_9 += MQ9.calibrate(RatioMQ9CleanAir);
     Serial.print(".");
   }
-  MQ9.setR0(calcR0/10);
+  MQ9.setR0(calcR0_9/10);
   Serial.println("  done!.");
   
-  if(isinf(calcR0)) {Serial.println("Warning: Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
-  if(calcR0 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+  if(isinf(calcR0_9)) {Serial.println("Warning: Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
+  if(calcR0_9 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
   
   Serial.print("Valor de R0 para MQ9");
   Serial.println(MQ9.getR0());
-  /*****************************  MQ CAlibration ********************************************/ 
-  //MQ135.setR0(R0value_MQ9); Uncomment for a fix value
+
+  /*****************************  MQ CAlibration ********************************************/
+  //MQ135.setR0(R0value_MQ135); Uncomment for a fix value
+  //MQ9.setR0(R0value_MQ9); Uncomment for a fix value
 
   MQ135.serialDebug(true);
   MQ9.serialDebug(true);
@@ -323,6 +324,7 @@ void loop() {
   //===============================================================================
    
    //Contraciones de CO2
+  /*
   if (CO2_ppm > 250 && CO2_ppm < 400){
     Serial.println("Concentración CO2 IDEAL");
     tft.println("Air Q.: Ideal");
@@ -348,11 +350,12 @@ void loop() {
   } else if (CO_ppm > 69.02){
     Serial.println("Concentración CO2: PELIGRO ALTO");
   }
-
+  */
 
   //===============================================================================
   // PANTALLita :)
   //===============================================================================
+
 
   tft.setCursor(4, 10);
   tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
@@ -360,11 +363,21 @@ void loop() {
   
   tft.setTextSize(1);
   tft.println("");
+  tft.println("Valor de R0 en MQ135");
+  tft.println(MQ135.getR0());
+  tft.println("");
+
+  tft.println("Valor de R0 en MQ9");
+  tft.println(MQ9.getR0());
+
+  //MQ135.serialDebug(true);
+  //MQ9.serialDebug(true);
+
   /*tft.println(tankLed);
   tft.println(tankNotif);
   tft.println(tankScrMessage);*/
 
-  Serial.println(tankLed);
+  /*Serial.println(tankLed);
   Serial.println(tankNotif);
   Serial.println(tankScrMessage);
 
@@ -425,7 +438,7 @@ void loop() {
   Serial.print("pinMOSFET: ");
   Serial.println(pinMosfetGate);
   tft.print("pinMOSFET: ");
-  tft.println(pinMosfetGate);
+  tft.println(pinMosfetGate);*/
 
 
   /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/
@@ -460,10 +473,10 @@ void loop() {
   } else if (ppm > 1000){
     Serial.println("Calidad del aire: Baja calidad");
     tft.println("Air Q.: Baja");
-  }*/
+  }
 
   Serial.println(" ");
-  Serial.println(" ");
+  Serial.println(" ");*/
 
   delay(1000);
 }
