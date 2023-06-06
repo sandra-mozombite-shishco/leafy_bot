@@ -321,7 +321,33 @@ void loop() {
   //===============================================================================
   // CONTROL DE CALIDAD DE AIRE
   //===============================================================================
+   
+   //Contraciones de CO2
+  if (CO2_ppm > 250 && CO2_ppm < 400){
+    Serial.println("Concentración CO2 IDEAL");
+    tft.println("Air Q.: Ideal");
+  } else if (CO2_ppm > 400 && CO2_ppm < 1000){
+    Serial.println("Concentración CO2 NORMAL");
+    tft.println("Air Q.: NORMAL");
+  } else if (CO2_ppm > 1000 && CO2_ppm < 2000){
+    Serial.println("Concentración CO2: riesgo moderado");
+    tft.println("Air Q.: riesgo moderado");
+  } else if (CO2_ppm > 2000 && CO2_ppm < 5000){
+    Serial.println("Concentración CO2: peligro");
+    tft.println("Air Q.: Baja");
+  } else if (CO2_ppm > 5000){
+    Serial.println("Concentración CO2: ALTO peligro");
+    tft.println("Air Q.: Baja");
+  }
 
+   //Contraciones de CO
+  if (CO_ppm < 23.8){
+    Serial.println("Concentración CO NORMAL");
+  } else if (CO_ppm > 23.8 && CO_ppm < 69.02){
+    Serial.println("Concentración CO: PELIGROSO");
+  } else if (CO_ppm > 69.02){
+    Serial.println("Concentración CO2: PELIGRO ALTO");
+  }
 
 
   //===============================================================================
@@ -331,8 +357,6 @@ void loop() {
   tft.setCursor(4, 10);
   tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
   tft.println("PROTIPO 2");
-
-
   
   tft.setTextSize(1);
   tft.println("");
@@ -404,34 +428,6 @@ void loop() {
   tft.println(pinMosfetGate);
 
 
-
-
-
-  /***************************************** CONTROL DE AGUA ********************************************/ 
-  // Control segun el sensor de nivel del deposito
-/*
-  if (waterLevel_10 == 1) { // Nivel de agua por debajo del 10%
-    Serial.println("Despósito de agua vacío");
-    tft.println("Tanque agua: VACIO");
-    delay(4000);
-    digitalWrite(pinMosfetGate, LOW); // 0 logico al gate -> apaga bomba
-    
-  }
-
-  else if (waterLevel_85 == 0 && waterLevel_10 == 0) { //nivel de agua por encima del 85%
-    Serial.println("Despósito de agua lleno");
-    tft.println("Tanque agua: LLENO");
-    delay(7000);
-    digitalWrite(pinMosfetGate, HIGH); // 1 logico al gate -> enciende bomba
-  }
-  else{
-    Serial.println("Hay agua en el depósito");
-    tft.println("Hay agua en el tanque");
-    delay(2000);
-  }
-  tft.println("");
-
-  
   /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/
 
   /*
