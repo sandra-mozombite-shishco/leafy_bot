@@ -3,10 +3,25 @@
 #include <MQUnifiedsensor.h>
 #include <TFT_eSPI.h>
 #include <SPI.h>
+#include <Nextion.h>
 
 /*********************************************  PANTALLA **********************************************/ 
 // Pantalla
 TFT_eSPI tft = TFT_eSPI();  // Invoke library
+
+// Pantalla Nextion
+const int iconSueloID = 6;
+
+//Campos de la pantalla Nextion
+//Iconos : NexPicture(PageID, ComponentId, ComponentName)
+NexPicture nIcAir = NexPicture(0, 5, "iconAirQ");
+NexPicture nIcMoist = NexPicture(0, 6, "iconMoist");
+NexPicture nIcTank = NexPicture(0, 7, "iconTank");
+
+//Textos : NexText(PageID, ComponentId, ComponentName)
+NexText nTxAir = NexText(0, 2, "tAirQ");
+NexText nTxMoist = NexText(0, 3, "tMoist");
+NexText nTxTank = NexText(0, 4, "tTank");
 
 /***************************************** CONTROL DE AGUA ********************************************/ 
 
@@ -26,7 +41,7 @@ String tankLed = "Blanco";        // Ejemplos: "Led tanque ROJO"; "Led tanque NA
 String tankNotif = "";
 String tankScrMessage = "";
 
-const int pinPushBut_pump=17;     //Pin digital en pull-down
+const int pinPushBut_pump=15;     //Pin digital en pull-down
 volatile int pump_Buttontag = 0;  // Señal de inicio del tanque, cambiara cuando se presione el botón de llenado
                           //  pump_Buttontag = 0; no se manda la señal de activación del tanque
                           //  pump_Buttontag = 1; se manda la señal de activación del tanque*/
@@ -71,6 +86,8 @@ void setup() {
   tft.init(INITR_BLACKTAB);
   tft.setRotation(3);
   tft.fillScreen(ST7735_BLACK);
+  //Nextion
+  nexInit(); 
 
  /***************************************** CONTROL DE AGUA ********************************************/ 
   //configure water pins as an input and enable the internal pull-up resistor
@@ -115,7 +132,7 @@ void setup() {
 
   /*****************************  MQ CAlibration ********************************************/ 
   /*Uncomment below in case of calibration*/
-  Serial.print("Calibrating MQ135 please wait.");
+  /*Serial.print("Calibrating MQ135 please wait.");
   float calcR0_135 = 0;
   for(int i = 1; i<=10; i ++)
   {
@@ -130,10 +147,10 @@ void setup() {
   if(calcR0_135 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
   
   Serial.print("Valor de R0 para MQ135");
-  Serial.println(MQ135.getR0());
+  Serial.println(MQ135.getR0());*/
 
   /*Uncomment below in case of calibration*/
-  Serial.print("Calibrating MQ9 please wait.");
+  /*Serial.print("Calibrating MQ9 please wait.");
   float calcR0_9 = 0;
   for(int i = 1; i<=10; i ++)
   {
@@ -148,11 +165,11 @@ void setup() {
   if(calcR0_9 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
   
   Serial.print("Valor de R0 para MQ9");
-  Serial.println(MQ9.getR0());
+  Serial.println(MQ9.getR0());*/
 
   /*****************************  MQ CAlibration ********************************************/
-  //MQ135.setR0(R0value_MQ135); Uncomment for a fix value
-  //MQ9.setR0(R0value_MQ9); Uncomment for a fix value
+  MQ135.setR0(R0value_MQ135); //Uncomment for a fix value
+  MQ9.setR0(R0value_MQ9); //Uncomment for a fix value
 
   MQ135.serialDebug(true);
   MQ9.serialDebug(true);
@@ -190,21 +207,31 @@ void loop() {
   //===============================================================================
   if (perMoist > MoistThre) // when the soil is WET
   {
+    //Pantalla
+    nIcMoist.setPic(2); // Suelo humedo
+    nTxMoist.setText("Húmedo");
+    //nIcTank ;
     soilMoist_state = 0;
     pump_Watertag = 0;
     switch (waterLevel_state) // Cambios de los indicadores
     {
     case 0:
+      nIcTank.setPic(4); // 
+      nTxTank.setText("Lleno");
       tankLed = "Led tanque verde"; 
       tankNotif = "No hay notif.";
       tankScrMessage = "Tanque lleno";
       break;
     case 1:
+      nIcTank.setPic(5); // 
+      nTxTank.setText("Con agua");
       tankLed = "Led tanque AMARILLO"; 
       tankNotif = "No hay notif.";
       tankScrMessage = "Tanque con agua";
       break;
     case 2:
+      nIcTank.setPic(6); // 
+      nTxTank.setText("Vacío");
       tankLed = "Led tanque NARANJA"; 
       tankNotif = "No hay notif.";
       tankScrMessage = "Tanque vacío";
@@ -215,22 +242,32 @@ void loop() {
   }
   else // when the soil is DRY
   {
+    //Pantalla
+    nIcMoist.setPic(3); // Suelo humedo
+    nTxMoist.setText("Seco");
+    //
     soilMoist_state = 1;
     switch (waterLevel_state)
     {
     case 0:
+      nIcTank.setPic(3); // 
+      nTxTank.setText("Listo");
       tankLed = "Led tanque verde parp."; 
       tankNotif = "Sí hay notif.";
       tankScrMessage = "Tanque listo";
       pump_Watertag = 1;
       break;
     case 1:
+      nIcTank.setPic(4); // 
+      nTxTank.setText("Falta agua");
       tankLed = "Led tanque nanranja parp."; 
       tankNotif = "Sí hay notif.";
       tankScrMessage = "Insuficiente agua";
       pump_Watertag = 0;
       break;
     case 2:
+      nIcTank.setPic(5); // 
+      nTxTank.setText("CVACÍO");
       tankLed = "Led tanque rojo parp."; 
       tankNotif = "Sí hay notif.";
       tankScrMessage = "¡¡¡Tanque vacío!!!";
@@ -373,11 +410,11 @@ void loop() {
   //MQ135.serialDebug(true);
   //MQ9.serialDebug(true);
 
-  /*tft.println(tankLed);
+  tft.println(tankLed);
   tft.println(tankNotif);
-  tft.println(tankScrMessage);*/
+  tft.println(tankScrMessage);
 
-  /*Serial.println(tankLed);
+  Serial.println(tankLed);
   Serial.println(tankNotif);
   Serial.println(tankScrMessage);
 
@@ -438,7 +475,7 @@ void loop() {
   Serial.print("pinMOSFET: ");
   Serial.println(pinMosfetGate);
   tft.print("pinMOSFET: ");
-  tft.println(pinMosfetGate);*/
+  tft.println(pinMosfetGate);
 
 
   /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/
