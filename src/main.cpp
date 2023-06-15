@@ -5,26 +5,11 @@
 #include <SPI.h>
 #include <Nextion.h>
 
-/*********************************************  PANTALLA **********************************************/ 
-// Pantalla
-TFT_eSPI tft = TFT_eSPI();  // Invoke library
-
-// Pantalla Nextion
-const int iconSueloID = 6;
-
-//Campos de la pantalla Nextion
-//Iconos : NexPicture(PageID, ComponentId, ComponentName)
-NexPicture nIcAir = NexPicture(0, 5, "iconAirQ");
-NexPicture nIcMoist = NexPicture(0, 6, "iconMoist");
-NexPicture nIcTank = NexPicture(0, 7, "iconTank");
-
-//Textos : NexText(PageID, ComponentId, ComponentName)
-NexText nTxAir = NexText(0, 2, "tAirQ");
-NexText nTxMoist = NexText(0, 3, "tMoist");
-NexText nTxTank = NexText(0, 4, "tTank");
+/***************************************** PANTALLA ********************************************/ 
+//Call the corresponding functions
+void txMoist_Callback(void *ptr);
 
 /***************************************** CONTROL DE AGUA ********************************************/ 
-
 //Pines para el control de la bomba e indicadores de agua
 const int pinWater85Level = 21;   //Pin digital
 const int pinWater10Level = 19;   //Pin digital
@@ -35,8 +20,9 @@ int MoistThre = 40;               //Es el valor% de humedad limite para regar la
 const int pinMosfetGate = 22;     //Pin digital
 
 //Variables de estados
-int waterLevel_state = 1;
-int soilMoist_state = 0;
+volatile int waterLevel_state = 1;
+volatile int soilMoist_state = 0;
+
 String tankLed = "Blanco";        // Ejemplos: "Led tanque ROJO"; "Led tanque NARANJA"; "Led tanque VERDE"
 String tankNotif = "";
 String tankScrMessage = "";
@@ -76,6 +62,36 @@ const float R0value_MQ9 = 0;
 MQUnifiedsensor MQ135(Board, Voltage_Resolution, ADC_Bit_Resolution, pinAir_MQ135, Type_MQ135); //Objeto de clase MQ
 MQUnifiedsensor MQ9(Board, Voltage_Resolution, ADC_Bit_Resolution, pinAir_MQ9, Type_MQ9); //Objeto de clase MQ
 
+/*********************************************  PANTALLA **********************************************/ 
+// Pantalla
+TFT_eSPI tft = TFT_eSPI();  // Invoke library
+
+// Pantalla Nextion
+const int iconSueloID = 6;
+
+//Campos de la pantalla Nextion
+//Iconos : NexPicture(PageID, ComponentId, ComponentName)
+NexPicture nIcAir = NexPicture(0, 5, "iconAirQ");
+NexPicture nIcMoist = NexPicture(0, 6, "iconMoist");
+NexPicture nIcTank = NexPicture(0, 7, "iconTank");
+
+//Textos : NexText(PageID, ComponentId, ComponentName)
+NexText nTxAir = NexText(0, 2, "tAirQ");
+NexText nTxMoist = NexText(0, 3, "tMoist");
+NexText nTxTank = NexText(0, 4, "tTank");
+
+// Register object t0, b0, b1, to the touch event list.
+NexTouch *nex_listen_list[] = {
+    &nIcAir,
+    &nIcMoist,
+    &nIcTank,
+    &nTxAir,
+    &nTxMoist,
+    &nTxTank,
+    NULL
+};
+
+
 
 void setup() {
   //start serial connection
@@ -87,7 +103,8 @@ void setup() {
   tft.setRotation(3);
   tft.fillScreen(ST7735_BLACK);
   //Nextion
-  nexInit(); 
+  nexInit();
+  nTxMoist.attachPop(txMoist_Callback); //Seco de estado del suelo
 
  /***************************************** CONTROL DE AGUA ********************************************/ 
   //configure water pins as an input and enable the internal pull-up resistor
@@ -400,7 +417,7 @@ void loop() {
   
   tft.setTextSize(1);
   tft.println("");
-  tft.println("Valor de R0 en MQ135");
+  /*tft.println("Valor de R0 en MQ135");
   tft.println(MQ135.getR0());
   tft.println("");
 
@@ -408,14 +425,14 @@ void loop() {
   tft.println(MQ9.getR0());
 
   //MQ135.serialDebug(true);
-  //MQ9.serialDebug(true);
+  //MQ9.serialDebug(true);*/
 
-  tft.println(tankLed);
-  tft.println(tankNotif);
+  //tft.println(tankLed);
+  //tft.println(tankNotif);
   tft.println(tankScrMessage);
 
-  Serial.println(tankLed);
-  Serial.println(tankNotif);
+  //Serial.println(tankLed);
+  //Serial.println(tankNotif);
   Serial.println(tankScrMessage);
 
   if (soilMoist_state==0)
@@ -514,7 +531,7 @@ void loop() {
 
   Serial.println(" ");
   Serial.println(" ");*/
-
+  nexLoop(nex_listen_list);
   delay(1000);
 }
 
@@ -523,3 +540,55 @@ void IRAM_ATTR turnONpump() {
   if (pump_Watertag == 1)  pump_Buttontag = 1;  
   // Cambiar el estado de la variable a 1 cuando se active la interrupción del botón
 }
+
+/*Recordar:
+    // int waterLevel_state =
+    //  2 : empty tank
+    //  1 : half full tank
+    //  0 : full tank
+
+    // int soilMoist_state =
+    //  1 : Dry
+    //  0 : Wet*/
+
+//Funciones de la pantalla Nextion
+void txMoist_Callback(void *ptr){
+    if (soilMoist_state == 0) {
+      nTxMoist.setText("Húmedo");
+      dbSerialPrintln("Cambio a humedo");
+    }
+    else {
+      nTxMoist.setText("Seco");
+      dbSerialPrintln("Cambio a seco");
+    };
+}
+
+void txTank_Callback(void *ptr){
+    nTxTank.setText("--");
+}
+
+void txAir_Callback(void *ptr){
+    nTxAir.setText("--");
+}
+/*
+ * Button0 component pop callback function.
+ * In this example,the value of the text component will plus one every time when button0 is released.
+ */
+/*void b0PopCallback(void *ptr)
+{
+    uint16_t len;
+    uint16_t number;
+    
+    dbSerialPrintln("b0PopCallback");
+
+    memset(buffer, 0, sizeof(buffer));
+    t0.getText(buffer, sizeof(buffer));
+    
+    number = atoi(buffer);
+    number += 1;
+
+    memset(buffer, 0, sizeof(buffer));
+    itoa(number, buffer, 10);
+    
+    t0.setText(buffer);
+}*/
