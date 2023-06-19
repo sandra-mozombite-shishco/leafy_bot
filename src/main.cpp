@@ -1,13 +1,11 @@
 #include <Arduino.h>
-//#include "MQ135.h"
 #include <MQUnifiedsensor.h>
 #include <TFT_eSPI.h>
 #include <SPI.h>
-#include <Nextion.h>
-
-/***************************************** PANTALLA ********************************************/ 
-//Call the corresponding functions
-void txMoist_Callback(void *ptr);
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+  #include <avr/power.h>
+#endif
 
 /***************************************** CONTROL DE AGUA ********************************************/ 
 //Pines para el control de la bomba e indicadores de agua
@@ -20,7 +18,7 @@ int MoistThre = 40;               //Es el valor% de humedad limite para regar la
 const int pinMosfetGate = 22;     //Pin digital
 
 //Variables de estados
-volatile int waterLevel_state = 1;
+int waterLevel_state = 1;
 volatile int soilMoist_state = 0;
 
 String tankLed = "Blanco";        // Ejemplos: "Led tanque ROJO"; "Led tanque NARANJA"; "Led tanque VERDE"
@@ -41,10 +39,9 @@ unsigned long betweenCycle_time = 0; // min*1000*60
 static unsigned long initialTime=0;
 
 
-/***************************** SENSORES DE CALIDAD DE AIRE ********************************************/ 
+/***************************** SENSORES DE CALIDAD DE AIRE ********************************************/
+
 //Variables y pines del sensado de aire
-//const int pinAir_MQ135=39;
-//MQ135 mq135_sensor = MQ135(pinAir_MQ135);
 String Board = "ESP-32";
 const float Voltage_Resolution = 3.3;
 const int ADC_Bit_Resolution = 12;
@@ -66,32 +63,33 @@ MQUnifiedsensor MQ9(Board, Voltage_Resolution, ADC_Bit_Resolution, pinAir_MQ9, T
 // Pantalla
 TFT_eSPI tft = TFT_eSPI();  // Invoke library
 
-// Pantalla Nextion
-const int iconSueloID = 6;
+/*********************************************  LEDS **************************************************/ 
+const int pinLed = 35;
+const int numPixels = 20;
 
-//Campos de la pantalla Nextion
-//Iconos : NexPicture(PageID, ComponentId, ComponentName)
-NexPicture nIcAir = NexPicture(0, 5, "iconAirQ");
-NexPicture nIcMoist = NexPicture(0, 6, "iconMoist");
-NexPicture nIcTank = NexPicture(0, 7, "iconTank");
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(numPixels, pinLed, NEO_GRB + NEO_KHZ800);
+//Estados del tanque:
+uint32_t naranjaClaro =pixels.Color(240,182,130);
+uint32_t amarilloClaro =pixels.Color(255,226,140);
+uint32_t verdeClaro =pixels.Color(199,230,122);
+uint32_t rojo =pixels.Color(237,28,36);
+uint32_t naranja =pixels.Color(255,127,39);
+uint32_t verde =pixels.Color(34,177,76);
 
-//Textos : NexText(PageID, ComponentId, ComponentName)
-NexText nTxAir = NexText(0, 2, "tAirQ");
-NexText nTxMoist = NexText(0, 3, "tMoist");
-NexText nTxTank = NexText(0, 4, "tTank");
+//Estados del suelo
+uint32_t azul =pixels.Color(0, 35, 245);
+//Comparte naranja
 
-// Register object t0, b0, b1, to the touch event list.
-NexTouch *nex_listen_list[] = {
-    &nIcAir,
-    &nIcMoist,
-    &nIcTank,
-    &nTxAir,
-    &nTxMoist,
-    &nTxTank,
-    NULL
-};
+//Concentración de gases
+uint32_t cyan =pixels.Color(2, 201,255);
+uint32_t morado =pixels.Color(165, 73,255);
+uint32_t magenta =pixels.Color(232,110,198);
 
-
+//Fotosintesis
+uint32_t negro =pixels.Color(0,0,0);
+uint32_t gris =pixels.Color(194,194,194);
+uint32_t blanco =pixels.Color(255,255,255);
+uint32_t colorLamp = negro;
 
 void setup() {
   //start serial connection
@@ -102,9 +100,6 @@ void setup() {
   tft.init(INITR_BLACKTAB);
   tft.setRotation(3);
   tft.fillScreen(ST7735_BLACK);
-  //Nextion
-  nexInit();
-  nTxMoist.attachPop(txMoist_Callback); //Seco de estado del suelo
 
  /***************************************** CONTROL DE AGUA ********************************************/ 
   //configure water pins as an input and enable the internal pull-up resistor
@@ -188,8 +183,11 @@ void setup() {
   MQ135.setR0(R0value_MQ135); //Uncomment for a fix value
   MQ9.setR0(R0value_MQ9); //Uncomment for a fix value
 
-  MQ135.serialDebug(true);
-  MQ9.serialDebug(true);
+  //MQ135.serialDebug(true);
+  //MQ9.serialDebug(true);
+
+  /*********************************************  LEDS **************************************************/
+  pixels.begin();
 }
 
 // the loop function runs over and over again forever
@@ -218,40 +216,61 @@ void loop() {
   MQ9.update();
   float CO_ppm = MQ9.readSensor();
 
+ 
+
 
   //===============================================================================
   // CONTROL DE INDICADORES DEL ESTADO DE HUMEDAD DEL SUELO
   //===============================================================================
   if (perMoist > MoistThre) // when the soil is WET
   {
-    //Pantalla
-    nIcMoist.setPic(2); // Suelo humedo
-    nTxMoist.setText("Húmedo");
-    //nIcTank ;
+    Serial.print("page0.tMoist.txt=\"HÚMEDO\"");                    //Texto 
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    
+    Serial.print("page0.iconMoist.pic=2");                          //Ícono
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    
+    pixels.setPixelColor(0, azul);                                  //Led
+
     soilMoist_state = 0;
     pump_Watertag = 0;
     switch (waterLevel_state) // Cambios de los indicadores
     {
     case 0:
-      nIcTank.setPic(4); // 
-      nTxTank.setText("Lleno");
-      tankLed = "Led tanque verde"; 
-      tankNotif = "No hay notif.";
-      tankScrMessage = "Tanque lleno";
+      Serial.print("page0.tTank.txt=\"Lleno\"");                    //Texto
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+      Serial.print("page0.tBtPost.txt=\"\"");       
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+      Serial.print("page0.iconTank.pic=4");                         //Ícono
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+      
+      pixels.setPixelColor(3, verdeClaro);                          //Led
+      
       break;
     case 1:
-      nIcTank.setPic(5); // 
-      nTxTank.setText("Con agua");
-      tankLed = "Led tanque AMARILLO"; 
-      tankNotif = "No hay notif.";
-      tankScrMessage = "Tanque con agua";
+      Serial.print("page0.tTank.txt=\"Con agua\"");       
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);  //Texto
+      Serial.print("page0.tBtPost.txt=\"\"");       
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+      Serial.print("page0.iconTank.pic=5");                        //Ícono
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+      
+      pixels.setPixelColor(3, amarilloClaro);                      //Led
+
       break;
     case 2:
-      nIcTank.setPic(6); // 
-      nTxTank.setText("Vacío");
-      tankLed = "Led tanque NARANJA"; 
-      tankNotif = "No hay notif.";
-      tankScrMessage = "Tanque vacío";
+      Serial.print("page0.tTank.txt=\"Vacío\"");       
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);   //Texto
+      Serial.print("page0.tBtPost.txt=\"\"");       
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+      Serial.print("page0.iconTank.pic=6");                        //Ícono
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+      
+      pixels.setPixelColor(3, naranjaClaro);                       //Led
+
       break;
     default:
       break;
@@ -259,35 +278,54 @@ void loop() {
   }
   else // when the soil is DRY
   {
-    //Pantalla
-    nIcMoist.setPic(3); // Suelo humedo
-    nTxMoist.setText("Seco");
-    //
+    Serial.print("page0.tMoist.txt=\"SECO\"");                    //Texto
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    Serial.print("page0.iconMoist.pic=3");                        //Ícono
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    pixels.setPixelColor(0, naranja);                             //Led
+
     soilMoist_state = 1;
     switch (waterLevel_state)
     {
     case 0:
-      nIcTank.setPic(3); // 
-      nTxTank.setText("Listo");
-      tankLed = "Led tanque verde parp."; 
-      tankNotif = "Sí hay notif.";
-      tankScrMessage = "Tanque listo";
+      Serial.print("page0.tTank.txt=\"LISTO\"");                    //Texto
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+      Serial.print("page0.tBtPost.txt=\"Presione botón\"");       
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+      Serial.print("page0.iconTank.pic=5");                         //Ícono
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+      pixels.setPixelColor(3, verde);                               //Led
+
       pump_Watertag = 1;
       break;
     case 1:
-      nIcTank.setPic(4); // 
-      nTxTank.setText("Falta agua");
-      tankLed = "Led tanque nanranja parp."; 
-      tankNotif = "Sí hay notif.";
-      tankScrMessage = "Insuficiente agua";
+      Serial.print("page0.tTank.txt=\"FALTA AGUA\"");       
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);   //Texto
+      Serial.print("page0.tBtPost.txt=\"\"");       
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+      Serial.print("page0.iconTank.pic=5");                         //Ícono
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+      pixels.setPixelColor(3, naranja);                             //Led
+
       pump_Watertag = 0;
       break;
     case 2:
-      nIcTank.setPic(5); // 
-      nTxTank.setText("CVACÍO");
-      tankLed = "Led tanque rojo parp."; 
-      tankNotif = "Sí hay notif.";
-      tankScrMessage = "¡¡¡Tanque vacío!!!";
+      Serial.print("page0.tTank.txt=\"¡VACÍO!\"");                  //Texto
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+      Serial.print("page0.tBtPost.txt=\"\"");       
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+      Serial.print("page0.iconTank.pic=6");                         //Ícono
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+      
+      pixels.setPixelColor(3, rojo);                                //Led
+
       pump_Watertag = 0;
       break;
     default:
@@ -378,86 +416,156 @@ void loop() {
   //===============================================================================
    
    //Contraciones de CO2
-  /*
+  int airQ_state=0;
   if (CO2_ppm > 250 && CO2_ppm < 400){
-    Serial.println("Concentración CO2 IDEAL");
-    tft.println("Air Q.: Ideal");
+    airQ_state=0;
+    
+    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.txt=\"IDEAL\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.pco=0");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    pixels.setPixelColor(2, cyan);                                 //Led
+
   } else if (CO2_ppm > 400 && CO2_ppm < 1000){
-    Serial.println("Concentración CO2 NORMAL");
-    tft.println("Air Q.: NORMAL");
+    airQ_state=0;
+    
+    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.txt=\"NORMAL\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.pco=0");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    pixels.setPixelColor(2, cyan);                                 //Led
+
   } else if (CO2_ppm > 1000 && CO2_ppm < 2000){
-    Serial.println("Concentración CO2: riesgo moderado");
-    tft.println("Air Q.: riesgo moderado");
+    airQ_state=1;
+
+    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.txt=\"RIESGO MODERADO\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.pco=32799");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    pixels.setPixelColor(2, morado);                               //Led
+
   } else if (CO2_ppm > 2000 && CO2_ppm < 5000){
-    Serial.println("Concentración CO2: peligro");
-    tft.println("Air Q.: Baja");
+    airQ_state=2;
+
+    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.txt=\"PELIGRO\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.pco=63519");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    pixels.setPixelColor(2, magenta);                              //Led
+
   } else if (CO2_ppm > 5000){
-    Serial.println("Concentración CO2: ALTO peligro");
-    tft.println("Air Q.: Baja");
+    airQ_state=2;
+
+    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.txt=\"ALTO PELIGRO! ⚠️\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO2_state.pco=63488");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    pixels.setPixelColor(2, magenta);                               //Led
   }
 
    //Contraciones de CO
   if (CO_ppm < 23.8){
-    Serial.println("Concentración CO NORMAL");
+    airQ_state=airQ_state+0;
+
+    Serial.print("page1.COppm.val="+String(CO_ppm));             //Texto
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO_state.txt=\"NORMAL\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO_state.pco=0");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    pixels.setPixelColor(1, cyan);                                //Led
+
   } else if (CO_ppm > 23.8 && CO_ppm < 69.02){
-    Serial.println("Concentración CO: PELIGROSO");
+    airQ_state=airQ_state+1;
+
+    Serial.print("page1.COppm.val="+String(CO_ppm));              //Texto
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO_state.txt=\"PELIGRO\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO_state.pco=63519");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    pixels.setPixelColor(1, morado);                               //Led
+    
   } else if (CO_ppm > 69.02){
+    airQ_state=airQ_state+2;
     Serial.println("Concentración CO2: PELIGRO ALTO");
+
+    Serial.print("page1.COppm.val="+String(CO_ppm));               //Texto
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO_state.txt=\"ALTO PELIGRO! ⚠️\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO_state.pco=63488");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+
+    pixels.setPixelColor(1,magenta);                                //Led
   }
-  */
+  
+  //Calidad de aire
+  if (airQ_state == 0){
+    Serial.print("page0.tAirQ.txt=\"BUEN AIRE\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page0.iconAirQ.pic=7");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    colorLamp = negro;
+
+  } else if (airQ_state == 1){
+    Serial.print("page0.tAirQ.txt=\"CUIDADO\\rConcentraciones riesgosas\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page0.iconAirQ.pic=9");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    colorLamp = gris;
+    
+  } else if (airQ_state == 2){
+    Serial.print("page0.tAirQ.txt=\"PELIGRO\\rMejora la ventilación\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page0.iconAirQ.pic=9");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    colorLamp = blanco;
+  }
+  else if (airQ_state >2){
+    Serial.print("page0.tAirQ.txt=\"¡ALTO PELIGRO! ⚠️\\rAbre ventanas y sal del lugar\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page0.iconAirQ.pic=9");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    colorLamp = blanco;
+  }
+
+  //===============================================================================
+  // LEDS
+  //===============================================================================
+  
+  //Lampara
+  for(int i=4;i<numPixels;i++){
+    pixels.setPixelColor(i, colorLamp);}
+
+  pixels.show(); 
 
   //===============================================================================
   // PANTALLita :)
   //===============================================================================
-
-
   tft.setCursor(4, 10);
   tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
   tft.println("PROTIPO 2");
   
   tft.setTextSize(1);
   tft.println("");
-  /*tft.println("Valor de R0 en MQ135");
-  tft.println(MQ135.getR0());
-  tft.println("");
-
-  tft.println("Valor de R0 en MQ9");
-  tft.println(MQ9.getR0());
-
-  //MQ135.serialDebug(true);
-  //MQ9.serialDebug(true);*/
-
-  //tft.println(tankLed);
-  //tft.println(tankNotif);
-  tft.println(tankScrMessage);
-
-  //Serial.println(tankLed);
-  //Serial.println(tankNotif);
-  Serial.println(tankScrMessage);
-
-  if (soilMoist_state==0)
-  {
-    tft.print("SUELO WET");
-    Serial.print("SUELO WET");
-  }
-  else
-  {
-    tft.print("SUELO DRY");
-    Serial.print("SUELO DRY");
-  }
-  Serial.print("  %:");
-  Serial.println(perMoist);
-  tft.print(" %:");
-  tft.println(perMoist);
-
-  Serial.print("H2OLvl: ");
-  Serial.println(waterLevel_state);
-  Serial.print("PumpStart: ");
-  Serial.println(pump_start);
-  Serial.print("+H2Otag: ");
-  Serial.print(pump_Watertag);
-  Serial.print("  +PushBt: ");
-  Serial.println(pump_Buttontag);
 
   tft.print("H2OLvl: ");
   tft.println(waterLevel_state);
@@ -468,71 +576,24 @@ void loop() {
   tft.print(" +PushBt: ");
   tft.println(pump_Buttontag);
 
-  Serial.print("Cycle: ");
-  Serial.println(pump_cycle);
   tft.print("Cycle: ");
   tft.println(pump_cycle);
 
-  Serial.print("initialTime: ");
-  Serial.println(initialTime);
   tft.print("initialTime: ");
   tft.println(initialTime);
 
-  Serial.print("HalfTime: ");
-  Serial.println(betweenCycle_time);
+
   tft.print("HalfTime: ");
   tft.println(betweenCycle_time);
 
-  Serial.print("Time: ");
-  Serial.println(time);
+
   tft.print("Time: ");
   tft.println(time);
   tft.println(" ");
 
-  Serial.print("pinMOSFET: ");
-  Serial.println(pinMosfetGate);
   tft.print("pinMOSFET: ");
   tft.println(pinMosfetGate);
-
-
-  /***************************** SENSORES DE CALIDAD DE AIRE ********************************************/
-
-  /*
-  Serial.print("CO2: ");
-  Serial.print(CO2_ppm);
-  Serial.println(" PPM");
-
-  
-  Serial.print("CO: ");
-  Serial.print(CO_ppm);
-  Serial.println(" PPM");
-
-  //Control según el sensor de gas
-  /*delay(100);
-  float ppm = mq135_sensor.getPPM();
-
-  Serial.print("Sensor de aire: ");  
-  Serial.print(ppm);
-  Serial.println(" PPM"); 
-  
-  tft.print(ppm);
-  tft.println(" ppm"); 
-
-  if (ppm > 250 && ppm < 400){
-    Serial.println("Calidad del aire: Normal");
-    tft.println("Air Q.: Normal");
-  } else if (ppm > 400 && ppm < 1000){
-    Serial.println("Calidad del aire: Típico con buen intercambio de aire");
-    tft.println("Air Q.: Típico con buen intercambio de aire");
-  } else if (ppm > 1000){
-    Serial.println("Calidad del aire: Baja calidad");
-    tft.println("Air Q.: Baja");
-  }
-
-  Serial.println(" ");
-  Serial.println(" ");*/
-  nexLoop(nex_listen_list);
-  delay(1000);
+  delay(200);
 }
 
 
@@ -540,55 +601,3 @@ void IRAM_ATTR turnONpump() {
   if (pump_Watertag == 1)  pump_Buttontag = 1;  
   // Cambiar el estado de la variable a 1 cuando se active la interrupción del botón
 }
-
-/*Recordar:
-    // int waterLevel_state =
-    //  2 : empty tank
-    //  1 : half full tank
-    //  0 : full tank
-
-    // int soilMoist_state =
-    //  1 : Dry
-    //  0 : Wet*/
-
-//Funciones de la pantalla Nextion
-void txMoist_Callback(void *ptr){
-    if (soilMoist_state == 0) {
-      nTxMoist.setText("Húmedo");
-      dbSerialPrintln("Cambio a humedo");
-    }
-    else {
-      nTxMoist.setText("Seco");
-      dbSerialPrintln("Cambio a seco");
-    };
-}
-
-void txTank_Callback(void *ptr){
-    nTxTank.setText("--");
-}
-
-void txAir_Callback(void *ptr){
-    nTxAir.setText("--");
-}
-/*
- * Button0 component pop callback function.
- * In this example,the value of the text component will plus one every time when button0 is released.
- */
-/*void b0PopCallback(void *ptr)
-{
-    uint16_t len;
-    uint16_t number;
-    
-    dbSerialPrintln("b0PopCallback");
-
-    memset(buffer, 0, sizeof(buffer));
-    t0.getText(buffer, sizeof(buffer));
-    
-    number = atoi(buffer);
-    number += 1;
-
-    memset(buffer, 0, sizeof(buffer));
-    itoa(number, buffer, 10);
-    
-    t0.setText(buffer);
-}*/
