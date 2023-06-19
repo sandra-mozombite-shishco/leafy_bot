@@ -49,12 +49,12 @@ const int ADC_Bit_Resolution = 12;
 String Type_MQ135 = "MQ-135";
 const int pinAir_MQ135 = 39; // Pin analógico GPIO39
 const float RatioMQ135CleanAir = 3.6; //RS / R0 = 3.6
-const float R0value_MQ135 = 0;
+const float R0value_MQ135 = 7.62;
 
 String Type_MQ9 = "MQ-9";
 const int pinAir_MQ9 = 34; // Pin analógico GPIO34
 const float RatioMQ9CleanAir = 9.6; //RS / R0 = 9.6
-const float R0value_MQ9 = 0;
+const float R0value_MQ9 = 4.1;
 
 MQUnifiedsensor MQ135(Board, Voltage_Resolution, ADC_Bit_Resolution, pinAir_MQ135, Type_MQ135); //Objeto de clase MQ
 MQUnifiedsensor MQ9(Board, Voltage_Resolution, ADC_Bit_Resolution, pinAir_MQ9, Type_MQ9); //Objeto de clase MQ
@@ -64,30 +64,35 @@ MQUnifiedsensor MQ9(Board, Voltage_Resolution, ADC_Bit_Resolution, pinAir_MQ9, T
 TFT_eSPI tft = TFT_eSPI();  // Invoke library
 
 /*********************************************  LEDS **************************************************/ 
-const int pinLed = 35;
+const int pinLed = 32;
 const int numPixels = 20;
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(numPixels, pinLed, NEO_GRB + NEO_KHZ800);
 //Estados del tanque:
-uint32_t naranjaClaro =pixels.Color(240,182,130);
-uint32_t amarilloClaro =pixels.Color(255,226,140);
-uint32_t verdeClaro =pixels.Color(199,230,122);
-uint32_t rojo =pixels.Color(237,28,36);
-uint32_t naranja =pixels.Color(255,127,39);
-uint32_t verde =pixels.Color(34,177,76);
+/*uint32_t naranjaClaro =pixels.Color(255,164,104);
+uint32_t amarilloClaro =pixels.Color(255,237,91);
+uint32_t verdeClaro =pixels.Color(94,196,89);*/
+uint32_t naranjaClaro =pixels.Color(40,10,2);
+//uint32_t amarilloClaro =pixels.Color(117,113,0); // Buen amarillo
+uint32_t amarilloClaro =pixels.Color(10,10,0);
+uint32_t verdeClaro =pixels.Color(5,30,15);
+
+uint32_t rojo =pixels.Color(255,0,0);
+uint32_t naranja =pixels.Color(150,50,10);
+uint32_t verde =pixels.Color(0,80,20);
 
 //Estados del suelo
-uint32_t azul =pixels.Color(0, 35, 245);
+uint32_t azul =pixels.Color(0, 0, 40);
 //Comparte naranja
 
 //Concentración de gases
-uint32_t cyan =pixels.Color(2, 201,255);
-uint32_t morado =pixels.Color(165, 73,255);
-uint32_t magenta =pixels.Color(232,110,198);
+uint32_t cyan =pixels.Color(0,40,40);
+uint32_t morado =pixels.Color(101, 23,135);
+uint32_t magenta =pixels.Color(255,0,255);
 
 //Fotosintesis
 uint32_t negro =pixels.Color(0,0,0);
-uint32_t gris =pixels.Color(194,194,194);
+uint32_t gris =pixels.Color(80,80,80);
 uint32_t blanco =pixels.Color(255,255,255);
 uint32_t colorLamp = negro;
 
@@ -216,9 +221,6 @@ void loop() {
   MQ9.update();
   float CO_ppm = MQ9.readSensor();
 
- 
-
-
   //===============================================================================
   // CONTROL DE INDICADORES DEL ESTADO DE HUMEDAD DEL SUELO
   //===============================================================================
@@ -295,7 +297,7 @@ void loop() {
       Serial.print("page0.tBtPost.txt=\"Presione botón\"");       
       Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
 
-      Serial.print("page0.iconTank.pic=5");                         //Ícono
+      Serial.print("page0.iconTank.pic=4");                         //Ícono
       Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
 
       pixels.setPixelColor(3, verde);                               //Led
@@ -417,7 +419,8 @@ void loop() {
    
    //Contraciones de CO2
   int airQ_state=0;
-  if (CO2_ppm > 250 && CO2_ppm < 400){
+  //if (CO2_ppm > 250 && CO2_ppm < 400){
+  if (CO2_ppm < 400){
     airQ_state=0;
     
     Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
@@ -521,19 +524,25 @@ void loop() {
   if (airQ_state == 0){
     Serial.print("page0.tAirQ.txt=\"BUEN AIRE\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page0.tAirQ.pco=0");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page0.iconAirQ.pic=7");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     colorLamp = negro;
 
   } else if (airQ_state == 1){
-    Serial.print("page0.tAirQ.txt=\"CUIDADO\\rConcentraciones riesgosas\"");
+    Serial.print("page0.tAirQ.txt=\"CUIDADO\\rConcentración riesgosa\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
-    Serial.print("page0.iconAirQ.pic=9");
+    Serial.print("page0.tAirQ.pco=32799");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page0.iconAirQ.pic=8");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     colorLamp = gris;
     
   } else if (airQ_state == 2){
     Serial.print("page0.tAirQ.txt=\"PELIGRO\\rMejora la ventilación\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page0.tAirQ.pco=63519");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page0.iconAirQ.pic=9");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
@@ -541,6 +550,8 @@ void loop() {
   }
   else if (airQ_state >2){
     Serial.print("page0.tAirQ.txt=\"¡ALTO PELIGRO! ⚠️\\rAbre ventanas y sal del lugar\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page0.tAirQ.pco=63488");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page0.iconAirQ.pic=9");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
