@@ -568,10 +568,58 @@ void loop() {
 
   pixels.show(); 
 
+
+  //===============================================================================
+  // CAMBIO DE CARITAS
+  //===============================================================================
+
+  tft.setCursor(4, 10);
+  tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
+  tft.println("PROTIPO 2");
+  
+  /*tft.setTextSize(1);
+  tft.println("");
+  tft.print("Air State: ");
+  tft.println(airQ_state);
+  tft.print("Wet?: ");
+  tft.println(soilMoist_state = 0);*/
+
+  if (airQ_state == 0){
+    if (soilMoist_state == 0){ //Wet condition
+      Serial.print("page0.icFace.pic=12");
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    }
+    else {
+      Serial.print("page0.icFace.pic=13"); //Dry
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    }
+
+  } else if (airQ_state == 1){
+    if (soilMoist_state == 0){ //Wet condition
+      Serial.print("page0.icFace.pic=14");
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    }
+    else {
+      Serial.print("page0.icFace.pic=16"); //Dry
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    }
+    
+  } else if (airQ_state > 1){
+    if (soilMoist_state == 0){ //Wet condition
+      Serial.print("page0.icFace.pic=15");
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    }
+    else {
+      Serial.print("page0.icFace.pic=16"); //Dry
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    }
+  }
+  
+
   //===============================================================================
   // PANTALLita :)
   //===============================================================================
-  tft.setCursor(4, 10);
+  /*tft.setCursor(4, 10);
   tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
   tft.println("PROTIPO 2");
   
@@ -604,7 +652,7 @@ void loop() {
 
   tft.print("pinMOSFET: ");
   tft.println(pinMosfetGate);
-  delay(200);
+  delay(200);*/
 }
 
 
