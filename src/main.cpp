@@ -65,7 +65,7 @@ TFT_eSPI tft = TFT_eSPI();  // Invoke library
 
 /*********************************************  LEDS **************************************************/ 
 const int pinLed = 32;
-const int numPixels = 20;
+const int numPixels = 10;
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(numPixels, pinLed, NEO_GRB + NEO_KHZ800);
 //Estados del tanque:
@@ -95,6 +95,8 @@ uint32_t negro =pixels.Color(0,0,0);
 uint32_t gris =pixels.Color(80,80,80);
 uint32_t blanco =pixels.Color(255,255,255);
 uint32_t colorLamp = negro;
+
+int count = 0;
 
 void setup() {
   //start serial connection
@@ -197,7 +199,7 @@ void setup() {
 
 // the loop function runs over and over again forever
 void loop() {
-
+  
   //===============================================================================
   // LECTURA DE LOS SENSORES
   //===============================================================================
@@ -224,6 +226,7 @@ void loop() {
   //===============================================================================
   // CONTROL DE INDICADORES DEL ESTADO DE HUMEDAD DEL SUELO
   //===============================================================================
+
   if (perMoist > MoistThre) // when the soil is WET
   {
     Serial.print("page0.tMoist.txt=\"HÚMEDO\"");                    //Texto 
@@ -251,8 +254,8 @@ void loop() {
       
       break;
     case 1:
-      Serial.print("page0.tTank.txt=\"Con agua\"");       
-      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);  //Texto
+      Serial.print("page0.tTank.txt=\"Con agua\"");                 //Texto
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
       Serial.print("page0.tBtPost.txt=\"\"");       
       Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
 
@@ -263,11 +266,10 @@ void loop() {
 
       break;
     case 2:
-      Serial.print("page0.tTank.txt=\"Vacío\"");       
-      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);   //Texto
+      Serial.print("page0.tTank.txt=\"Vacío\"");                  //Texto
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
       Serial.print("page0.tBtPost.txt=\"\"");       
       Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
-
       Serial.print("page0.iconTank.pic=6");                        //Ícono
       Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
       
@@ -305,8 +307,8 @@ void loop() {
       pump_Watertag = 1;
       break;
     case 1:
-      Serial.print("page0.tTank.txt=\"FALTA AGUA\"");       
-      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);   //Texto
+      Serial.print("page0.tTank.txt=\"FALTA AGUA\"");               //Texto
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff); 
       Serial.print("page0.tBtPost.txt=\"\"");       
       Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
 
@@ -350,6 +352,14 @@ void loop() {
 
   pump_cycle = (pump_start==2) ? 1 : pump_cycle; 
   // pump_cycle = 1 when pump_start=2, else pump_start keep its value
+
+  if (pump_cycle>0) {
+      Serial.print("page1.pump_State.txt=\"Riego activado\""); 
+      Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);}
+  else {
+    Serial.print("page1.pump_State.txt=\"Riego desactivado\"");
+    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);}
+  
 
   switch (pump_cycle)
   {
@@ -412,18 +422,20 @@ void loop() {
       break;
   }
   
+  Serial.print("page1.nCiclo.txt=\""+String(pump_cycle)+"\"");
+  Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
 
   //===============================================================================
   // CONTROL DE CALIDAD DE AIRE
   //===============================================================================
-   
-   //Contraciones de CO2
+
+  //Contraciones de CO2
   int airQ_state=0;
   //if (CO2_ppm > 250 && CO2_ppm < 400){
   if (CO2_ppm < 400){
     airQ_state=0;
     
-    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.print("page1.CO2_ppm.txt=\""+String(CO2_ppm)+"\"");     //Texto
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page1.CO2_state.txt=\"IDEAL\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
@@ -435,7 +447,7 @@ void loop() {
   } else if (CO2_ppm > 400 && CO2_ppm < 1000){
     airQ_state=0;
     
-    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.print("page1.CO2_ppm.txt=\""+String(CO2_ppm)+"\"");     //Texto
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page1.CO2_state.txt=\"NORMAL\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
@@ -447,7 +459,7 @@ void loop() {
   } else if (CO2_ppm > 1000 && CO2_ppm < 2000){
     airQ_state=1;
 
-    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.print("page1.CO2_ppm.txt=\""+String(CO2_ppm)+"\"");     //Texto
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page1.CO2_state.txt=\"RIESGO MODERADO\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
@@ -459,7 +471,7 @@ void loop() {
   } else if (CO2_ppm > 2000 && CO2_ppm < 5000){
     airQ_state=2;
 
-    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.print("page1.CO2_ppm.txt=\""+String(CO2_ppm)+"\"");     //Texto
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page1.CO2_state.txt=\"PELIGRO\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
@@ -471,7 +483,7 @@ void loop() {
   } else if (CO2_ppm > 5000){
     airQ_state=2;
 
-    Serial.print("page1.CO2ppm.val="+String(CO2_ppm));             //Texto
+    Serial.print("page1.CO2_ppm.txt=\""+String(CO2_ppm)+"\"");      //Texto
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page1.CO2_state.txt=\"ALTO PELIGRO! ⚠️\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
@@ -485,7 +497,7 @@ void loop() {
   if (CO_ppm < 23.8){
     airQ_state=airQ_state+0;
 
-    Serial.print("page1.COppm.val="+String(CO_ppm));             //Texto
+    Serial.print("page1.CO_ppm.txt=\""+String(CO_ppm)+"\"");             //Texto
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page1.CO_state.txt=\"NORMAL\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
@@ -497,12 +509,18 @@ void loop() {
   } else if (CO_ppm > 23.8 && CO_ppm < 69.02){
     airQ_state=airQ_state+1;
 
-    Serial.print("page1.COppm.val="+String(CO_ppm));              //Texto
-    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.print("page1.CO_ppm.txt=\""+String(CO_ppm)+"\"");      //Texto
+    Serial.write(0xff); 
+    Serial.write(0xff); 
+    Serial.write(0xff);
     Serial.print("page1.CO_state.txt=\"PELIGRO\"");
-    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.write(0xff); 
+    Serial.write(0xff); 
+    Serial.write(0xff);
     Serial.print("page1.CO_state.pco=63519");
-    Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
+    Serial.write(0xff); 
+    Serial.write(0xff); 
+    Serial.write(0xff);
 
     pixels.setPixelColor(1, morado);                               //Led
     
@@ -510,7 +528,7 @@ void loop() {
     airQ_state=airQ_state+2;
     Serial.println("Concentración CO2: PELIGRO ALTO");
 
-    Serial.print("page1.COppm.val="+String(CO_ppm));               //Texto
+    Serial.print("page1.CO_ppm.txt=\""+String(CO_ppm)+"\"");       //Texto
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
     Serial.print("page1.CO_state.txt=\"ALTO PELIGRO! ⚠️\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
@@ -521,6 +539,7 @@ void loop() {
   }
   
   //Calidad de aire
+
   if (airQ_state == 0){
     Serial.print("page0.tAirQ.txt=\"BUEN AIRE\"");
     Serial.write(0xff); Serial.write(0xff); Serial.write(0xff);
@@ -573,16 +592,6 @@ void loop() {
   // CAMBIO DE CARITAS
   //===============================================================================
 
-  tft.setCursor(4, 10);
-  tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
-  tft.println("PROTIPO 2");
-  
-  /*tft.setTextSize(1);
-  tft.println("");
-  tft.print("Air State: ");
-  tft.println(airQ_state);
-  tft.print("Wet?: ");
-  tft.println(soilMoist_state = 0);*/
 
   if (airQ_state == 0){
     if (soilMoist_state == 0){ //Wet condition
@@ -615,15 +624,20 @@ void loop() {
     }
   }
   
+  delay(200);
 
   //===============================================================================
   // PANTALLita :)
   //===============================================================================
-  /*tft.setCursor(4, 10);
+
+  tft.setCursor(4, 10);
   tft.setTextColor(TFT_WHITE,TFT_BLACK);  tft.setTextSize(2);
   tft.println("PROTIPO 2");
   
   tft.setTextSize(1);
+  tft.println("");
+  tft.print("Porcentaje de humedad: ");
+  tft.println(perMoist);
   tft.println("");
 
   tft.print("H2OLvl: ");
@@ -638,21 +652,24 @@ void loop() {
   tft.print("Cycle: ");
   tft.println(pump_cycle);
 
-  tft.print("initialTime: ");
-  tft.println(initialTime);
+  //tft.print("initialTime: ");
+  //tft.println(initialTime);
 
 
-  tft.print("HalfTime: ");
-  tft.println(betweenCycle_time);
+  //tft.print("HalfTime: ");
+  //tft.println(betweenCycle_time);
 
 
-  tft.print("Time: ");
-  tft.println(time);
-  tft.println(" ");
+  //tft.print("Time: ");
+  //tft.println(time);
+  //tft.println(" ");
 
   tft.print("pinMOSFET: ");
   tft.println(pinMosfetGate);
-  delay(200);*/
+  tft.println("");
+  tft.print("Air Q: ");
+  //tft.println(airQ_state);
+  tft.println("");
 }
 
 
