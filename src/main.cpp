@@ -13,7 +13,7 @@ const int pinWater85Level = 21;   //Pin digital
 const int pinWater10Level = 19;   //Pin digital
 
 const int pinMoistSoil = 36;      //Pin analogico
-int MoistThre = 40;               //Es el valor% de humedad limite para regar la maceta
+int MoistThre = 45;               //Es el valor% de humedad limite para regar la maceta
 
 const int pinMosfetGate = 22;     //Pin digital
 
@@ -207,6 +207,7 @@ void loop() {
   //Lectura de los sensores de nivel de agua
   int waterLevel_85 = digitalRead(pinWater85Level); //above level = 0, below level = 1
   int waterLevel_10 = digitalRead(pinWater10Level); //above level = 0, below level = 1
+
   waterLevel_state = waterLevel_85 + waterLevel_10;
     // waterLevel_state =
     //  2 : empty tank
@@ -371,7 +372,7 @@ void loop() {
         digitalWrite(pinMosfetGate, LOW);               //Apaga bomba
         initialTime = millis();                         //Reinicia la cuenta
         pump_cycle=2;
-        betweenCycle_time = 15*1000; // min*1000*60
+        betweenCycle_time = 15*1000*60; // min*1000*60
       }
       break;
     case 2:                                             //CICLO 2 --------------
@@ -384,7 +385,7 @@ void loop() {
           digitalWrite(pinMosfetGate, LOW);             //Apaga la bomba
           initialTime = millis();                       //Reinicia la cuenta
           pump_cycle=3;
-          betweenCycle_time = 20*1000; // min*1000*60
+          betweenCycle_time = 20*1000*60; // min*1000*60
         }
       }
       break;
@@ -398,7 +399,7 @@ void loop() {
           digitalWrite(pinMosfetGate, LOW);             //Apaga la bomba
           initialTime = millis();                       //Reinicia la cuenta
           pump_cycle=4;
-          betweenCycle_time = 30*1000; // min*1000*60
+          betweenCycle_time = 30*1000*60; // min*1000*60
         }
       }
       break;
@@ -667,9 +668,12 @@ void loop() {
   tft.print("pinMOSFET: ");
   tft.println(pinMosfetGate);
   tft.println("");
-  tft.print("Air Q: ");
-  //tft.println(airQ_state);
+  tft.print("CO2: ");
+  tft.println(CO2_ppm);
+  tft.print("CO: ");
+  tft.println(CO_ppm);
   tft.println("");
+  //tft.println(airQ_state)
 }
 
 
