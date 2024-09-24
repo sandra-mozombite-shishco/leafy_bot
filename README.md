@@ -5,8 +5,8 @@ Leafy Bot es una estación purificadora de aire conformada por una planta y mace
 - Control de regado: listo
 - Control de gases:
     - Condicionales: listo
-    - Acciones: pendiente 
-- Calibrar humedad: pendiente
-- Calibrar sensores de aire: pendiente
-- Control de luz para crecimiento de la planta (mejorar purificacion): pendiente
-- Interfaz pantalla: pendiente
+    - Acciones: listo
+- Calibrar humedad: listo
+- Calibrar sensores de aire: listo
+- Control de luz para crecimiento de la planta (mejorar purificacion): listo
+- Interfaz pantalla: listo
